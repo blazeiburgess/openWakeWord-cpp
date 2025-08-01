@@ -53,11 +53,11 @@ void SpeexNoiseSupressor::process(AudioSample* samples, size_t count) {
     size_t processed = 0;
     
     // Ensure process buffer is large enough
-    if (processBuffer_.size() < frameSize_) {
+    if (processBuffer_.size() < static_cast<size_t>(frameSize_)) {
         processBuffer_.resize(frameSize_);
     }
     
-    while (processed + frameSize_ <= count) {
+    while (processed + static_cast<size_t>(frameSize_) <= count) {
         // Copy to process buffer
         std::memcpy(processBuffer_.data(), samples + processed, 
                    frameSize_ * sizeof(AudioSample));
@@ -69,7 +69,7 @@ void SpeexNoiseSupressor::process(AudioSample* samples, size_t count) {
         std::memcpy(samples + processed, processBuffer_.data(), 
                    frameSize_ * sizeof(AudioSample));
         
-        processed += frameSize_;
+        processed += static_cast<size_t>(frameSize_);
     }
     
     // Handle remaining samples (if any)
