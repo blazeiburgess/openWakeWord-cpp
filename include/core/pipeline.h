@@ -8,6 +8,7 @@
 #include <vector>
 #include "core/audio_processor.h"
 #include "core/types.h"
+#include "core/thread_safe_buffer.h"
 #include "processors/mel_spectrogram.h"
 #include "processors/speech_embedding.h"
 #include "processors/wake_word_detector.h"
