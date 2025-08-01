@@ -85,7 +85,7 @@ void WakeWordDetector::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> input,
 
 void WakeWordDetector::processPrediction(float probability, std::mutex& outputMutex,
                                        OutputMode outputMode, bool showTimestamp) {
-    if (config_.debug) {
+    if (config_.debug || outputMode == OutputMode::VERBOSE) {
         std::unique_lock<std::mutex> lock(outputMutex);
         std::cerr << wakeWord_ << " " << probability << std::endl;
     }

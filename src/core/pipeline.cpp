@@ -37,6 +37,9 @@ bool Pipeline::initialize() {
     if (!melProcessor_->initialize()) {
         return false;
     }
+    if (config_.outputMode == OutputMode::VERBOSE || config_.outputMode == OutputMode::NORMAL) {
+        std::cerr << "[LOG] Loaded mel spectrogram model" << std::endl;
+    }
     
     // Initialize speech embedding processor
     embeddingProcessor_ = std::make_unique<SpeechEmbeddingProcessor>(
@@ -44,6 +47,9 @@ bool Pipeline::initialize() {
     embeddingProcessor_->setModelPath(config_.embModelPath);
     if (!embeddingProcessor_->initialize()) {
         return false;
+    }
+    if (config_.outputMode == OutputMode::VERBOSE || config_.outputMode == OutputMode::NORMAL) {
+        std::cerr << "[LOG] Loaded speech embedding model" << std::endl;
     }
     
     // Initialize wake word detectors
@@ -53,6 +59,9 @@ bool Pipeline::initialize() {
             wakeWord, wwConfig, env_, sessionOptions_);
         if (!detector->initialize()) {
             return false;
+        }
+        if (config_.outputMode == OutputMode::VERBOSE || config_.outputMode == OutputMode::NORMAL) {
+            std::cerr << "[LOG] Loaded wake word model: " << wakeWord << std::endl;
         }
         detectors_.push_back(std::move(detector));
     }
@@ -71,13 +80,13 @@ void Pipeline::start() {
     // Start mel spectrogram thread
     melThread_ = std::thread([this]() {
         incrementReady();
-        melProcessor_->run(audioBuffer_, melBuffer_);
+        melProcessor_->run(audioBuffer_, melBuffer_, config_.outputMode);
     });
     
     // Start embedding thread
     embeddingThread_ = std::thread([this]() {
         incrementReady();
-        embeddingProcessor_->run(melBuffer_, featureBuffers_);
+        embeddingProcessor_->run(melBuffer_, featureBuffers_, config_.outputMode);
     });
     
     // Start wake word detector threads
