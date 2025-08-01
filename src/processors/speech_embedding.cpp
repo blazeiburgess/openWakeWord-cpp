@@ -22,7 +22,7 @@ bool SpeechEmbeddingProcessor::initialize() {
         return false;
     }
     
-    std::cerr << "[LOG] Loaded speech embedding model" << std::endl;
+    // Log message handled by pipeline based on output mode
     initialized_ = true;
     return true;
 }
@@ -37,9 +37,12 @@ void SpeechEmbeddingProcessor::reset() {
 }
 
 void SpeechEmbeddingProcessor::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> input,
-                                   std::vector<std::shared_ptr<ThreadSafeBuffer<AudioFloat>>> outputs) {
+                                   std::vector<std::shared_ptr<ThreadSafeBuffer<AudioFloat>>> outputs,
+                                   OutputMode outputMode) {
     if (!initialized_) {
-        std::cerr << "[ERROR] SpeechEmbeddingProcessor not initialized" << std::endl;
+        if (outputMode != OutputMode::QUIET) {
+            std::cerr << "[ERROR] SpeechEmbeddingProcessor not initialized" << std::endl;
+        }
         return;
     }
     
