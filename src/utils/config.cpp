@@ -1,6 +1,11 @@
 #include "utils/config.h"
 #include <iostream>
 #include <cstdlib>
+#include <filesystem>
+#include <algorithm>
+#include <iomanip>
+#include <fstream>
+#include <onnxruntime_cxx_api.h>
 
 namespace openwakeword {
 
@@ -41,6 +46,21 @@ bool Config::parseArgs(int argc, char* argv[]) {
             enableNoiseSuppression = true;
         } else if (arg == "--debug") {
             debug = true;
+        } else if (arg == "--quiet") {
+            outputMode = OutputMode::QUIET;
+        } else if (arg == "--verbose") {
+            outputMode = OutputMode::VERBOSE;
+        } else if (arg == "--json") {
+            jsonOutput = true;
+            outputMode = OutputMode::JSON;
+        } else if (arg == "--timestamp") {
+            showTimestamp = true;
+        } else if (arg == "--version") {
+            printVersion();
+            return false;
+        } else if (arg == "--list-models") {
+            listAvailableModels();
+            return false;
         } else if (arg == "-h" || arg == "--help") {
             printUsage(argv[0]);
             return false;
@@ -129,22 +149,46 @@ bool Config::validate() const {
 
 void Config::printUsage(const char* programName) {
     std::cerr << std::endl;
-    std::cerr << "usage: " << programName << " [options]" << std::endl;
+    std::cerr << "openWakeWord - Real-time wake word detection" << std::endl;
     std::cerr << std::endl;
-    std::cerr << "options:" << std::endl;
-    std::cerr << "   -h        --help                         show this message and exit" << std::endl;
-    std::cerr << "   -m  FILE  --model FILE                   path to wake word model (repeat for multiple models)" << std::endl;
-    std::cerr << "   -c  FILE  --config FILE                  path to configuration file" << std::endl;
-    std::cerr << "   -t  NUM   --threshold NUM                threshold for activation (0-1, default: 0.5)" << std::endl;
-    std::cerr << "   -l  NUM   --trigger-level NUM            number of activations before output (default: 4)" << std::endl;
-    std::cerr << "   -r  NUM   --refractory NUM               number of steps after activation to wait (default: 20)" << std::endl;
-    std::cerr << "   --step-frames NUM                        number of 80 ms audio chunks to process at a time (default: 4)" << std::endl;
-    std::cerr << "   --melspectrogram-model FILE              path to melspectrogram.onnx file" << std::endl;
-    std::cerr << "   --embedding-model FILE                   path to embedding_model.onnx file" << std::endl;
-    std::cerr << "   --vad-threshold NUM                      enable VAD with threshold (0-1)" << std::endl;
-    std::cerr << "   --vad-model FILE                         path to VAD model (default: models/silero_vad.onnx)" << std::endl;
-    std::cerr << "   --enable-noise-suppression               enable Speex noise suppression" << std::endl;
-    std::cerr << "   --debug                                  print model probabilities to stderr" << std::endl;
+    std::cerr << "USAGE:" << std::endl;
+    std::cerr << "  " << programName << " [options]" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "GENERAL OPTIONS:" << std::endl;
+    std::cerr << "  -h, --help                    Show this help message and exit" << std::endl;
+    std::cerr << "  --version                     Show version information" << std::endl;
+    std::cerr << "  --list-models                 List available wake word models" << std::endl;
+    std::cerr << "  -c, --config FILE             Load configuration from file" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "MODEL OPTIONS:" << std::endl;
+    std::cerr << "  -m, --model FILE              Path to wake word model (can be repeated)" << std::endl;
+    std::cerr << "  -t, --threshold NUM           Detection threshold (0-1, default: 0.5)" << std::endl;
+    std::cerr << "  -l, --trigger-level NUM       Activations needed before trigger (default: 4)" << std::endl;
+    std::cerr << "  -r, --refractory NUM          Steps to wait after activation (default: 20)" << std::endl;
+    std::cerr << "  --melspectrogram-model FILE   Path to mel spectrogram model" << std::endl;
+    std::cerr << "  --embedding-model FILE        Path to speech embedding model" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "AUDIO PROCESSING:" << std::endl;
+    std::cerr << "  --enable-noise-suppression    Enable Speex noise suppression" << std::endl;
+    std::cerr << "  --vad-threshold NUM           Enable VAD with threshold (0-1)" << std::endl;
+    std::cerr << "  --vad-model FILE              Path to VAD model" << std::endl;
+    std::cerr << "  --step-frames NUM             Audio chunks to process at once (default: 4)" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "OUTPUT OPTIONS:" << std::endl;
+    std::cerr << "  --quiet                       Suppress all output except detections" << std::endl;
+    std::cerr << "  --verbose                     Enable verbose logging" << std::endl;
+    std::cerr << "  --json                        Output in JSON format" << std::endl;
+    std::cerr << "  --timestamp                   Include timestamps with detections" << std::endl;
+    std::cerr << "  --debug                       Print model probabilities to stderr" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "EXAMPLES:" << std::endl;
+    std::cerr << "  # Basic usage with single model" << std::endl;
+    std::cerr << "  arecord -r 16000 -c 1 -f S16_LE -t raw - | " << programName << " --model models/alexa_v0.1.onnx" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "  # Multiple models with noise suppression" << std::endl;
+    std::cerr << "  arecord -r 16000 -c 1 -f S16_LE -t raw - | " << programName << " \\" << std::endl;
+    std::cerr << "    --model models/alexa_v0.1.onnx --model models/hey_jarvis_v0.1.onnx \\" << std::endl;
+    std::cerr << "    --enable-noise-suppression --threshold 0.6" << std::endl;
     std::cerr << std::endl;
 }
 
