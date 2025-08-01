@@ -52,6 +52,7 @@ public:
 private:
     Config config_;
     Ort::Env env_;
+    Ort::SessionOptions sessionOptions_;
     
     // Processing stages
     std::unique_ptr<MelSpectrogramProcessor> melProcessor_;

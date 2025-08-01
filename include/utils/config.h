@@ -40,8 +40,9 @@ struct Config {
     bool enableCustomVerifiers = false;
     float customVerifierThreshold = 0.1f;
     
-    // ONNX Runtime options
-    Ort::SessionOptions sessionOptions;
+    // ONNX Runtime configuration
+    int intraOpNumThreads = 1;
+    int interOpNumThreads = 1;
     
     // Parse command line arguments
     bool parseArgs(int argc, char* argv[]);

@@ -59,9 +59,9 @@ bool Config::parseArgs(int argc, char* argv[]) {
     // Update frame size based on step frames
     frameSize = stepFrames * CHUNK_SAMPLES;
     
-    // Configure ONNX Runtime options
-    sessionOptions.SetIntraOpNumThreads(1);
-    sessionOptions.SetInterOpNumThreads(1);
+    // Configure ONNX Runtime options (these will be used when creating SessionOptions)
+    // intraOpNumThreads = 1;  // Already set as default
+    // interOpNumThreads = 1;  // Already set as default
     
     // Create per-model configurations if not already specified
     if (wakeWordConfigs.empty() && !wakeWordModelPaths.empty()) {

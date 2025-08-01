@@ -8,6 +8,10 @@ Pipeline::Pipeline(const Config& config)
       env_(OrtLoggingLevel::ORT_LOGGING_LEVEL_WARNING, "openWakeWord") {
     env_.DisableTelemetryEvents();
     
+    // Configure session options
+    sessionOptions_.SetIntraOpNumThreads(config_.intraOpNumThreads);
+    sessionOptions_.SetInterOpNumThreads(config_.interOpNumThreads);
+    
     // Calculate expected ready count
     expectedReadyCount_ = 2 + config_.wakeWordConfigs.size(); // mel + embedding + wake words
 }
