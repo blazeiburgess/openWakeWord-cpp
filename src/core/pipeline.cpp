@@ -165,7 +165,9 @@ void Pipeline::waitUntilReady() {
         return readyCount_ >= expectedReadyCount_; 
     });
     
-    std::cerr << "[LOG] Pipeline ready" << std::endl;
+    if (config_.outputMode == OutputMode::VERBOSE || config_.outputMode == OutputMode::NORMAL) {
+        std::cerr << "[LOG] Pipeline ready" << std::endl;
+    }
 }
 
 void Pipeline::incrementReady() {
