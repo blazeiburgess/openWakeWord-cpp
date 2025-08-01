@@ -34,9 +34,12 @@ void MelSpectrogramProcessor::reset() {
 }
 
 void MelSpectrogramProcessor::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> input,
-                                  std::shared_ptr<ThreadSafeBuffer<AudioFloat>> output) {
+                                  std::shared_ptr<ThreadSafeBuffer<AudioFloat>> output,
+                                  OutputMode outputMode) {
     if (!initialized_) {
-        std::cerr << "[ERROR] MelSpectrogramProcessor not initialized" << std::endl;
+        if (outputMode != OutputMode::QUIET) {
+            std::cerr << "[ERROR] MelSpectrogramProcessor not initialized" << std::endl;
+        }
         return;
     }
     

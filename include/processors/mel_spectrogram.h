@@ -9,6 +9,7 @@
 #include "core/audio_processor.h"
 #include "core/model_wrapper.h"
 #include "core/types.h"
+#include "utils/config.h"
 
 namespace openwakeword {
 
@@ -97,7 +98,8 @@ public:
     
     // Thread entry point
     void run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> input,
-             std::shared_ptr<ThreadSafeBuffer<AudioFloat>> output);
+             std::shared_ptr<ThreadSafeBuffer<AudioFloat>> output,
+             OutputMode outputMode);
     
 private:
     Ort::Env& env_;
