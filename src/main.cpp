@@ -48,7 +48,9 @@ int main(int argc, char *argv[]) {
     // Wait until all components are ready
     g_pipeline->waitUntilReady();
     
-    std::cerr << "[LOG] Ready" << std::endl;
+    if (config.outputMode != OutputMode::QUIET) {
+        std::cerr << "[LOG] Ready" << std::endl;
+    }
     
     // Main audio input loop
     std::vector<AudioSample> samples(config.frameSize);
