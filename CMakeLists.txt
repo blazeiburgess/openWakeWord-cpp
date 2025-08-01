@@ -45,6 +45,18 @@ set(ONNXRUNTIME_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/${ARCH_DIR}")
 # Find required libraries
 find_package(Threads REQUIRED)
 
+# Optional: Find Speex for noise suppression
+find_package(PkgConfig)
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(SPEEXDSP speexdsp)
+    if(SPEEXDSP_FOUND)
+        message(STATUS "Found Speex DSP library - noise suppression will be available")
+        add_definitions(-DHAVE_SPEEX)
+    else()
+        message(STATUS "Speex DSP library not found - noise suppression will be disabled")
+    endif()
+endif()
+
 # Check if ONNX Runtime library exists
 if(NOT EXISTS "${ONNXRUNTIME_LIB_DIR}")
     message(FATAL_ERROR "ONNX Runtime library directory not found: ${ONNXRUNTIME_LIB_DIR}\n"
@@ -62,8 +74,21 @@ if(NOT ONNXRUNTIME_LIB)
     message(FATAL_ERROR "ONNX Runtime library not found in ${ONNXRUNTIME_LIB_DIR}")
 endif()
 
+# Source files
+set(SOURCES
+    src/main.cpp
+    src/core/model_wrapper.cpp
+    src/core/pipeline.cpp
+    src/processors/mel_spectrogram.cpp
+    src/processors/speech_embedding.cpp
+    src/processors/wake_word_detector.cpp
+    src/utils/config.cpp
+    src/preprocessors/vad.cpp
+    src/preprocessors/speex_noise_suppressor.cpp
+)
+
 # Main executable
-add_executable(openwakeword src/main.cpp)
+add_executable(openwakeword ${SOURCES})
 
 # Set properties
 target_compile_features(openwakeword PRIVATE cxx_std_20)
@@ -79,6 +104,12 @@ target_link_libraries(openwakeword PRIVATE
     Threads::Threads
     ${ONNXRUNTIME_LIB}
 )
+
+# Link optional libraries
+if(SPEEXDSP_FOUND)
+    target_link_libraries(openwakeword PRIVATE ${SPEEXDSP_LIBRARIES})
+    target_include_directories(openwakeword PRIVATE ${SPEEXDSP_INCLUDE_DIRS})
+endif()
 
 # Set rpath for finding shared libraries at runtime
 if(UNIX AND NOT APPLE)
