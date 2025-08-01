@@ -417,9 +417,9 @@ int main(int argc, char *argv[]) {
   cerr << "[LOG] Ready" << endl;
 
   // Main loop
-  int16_t samples[settings.frameSize];
+  vector<int16_t> samples(settings.frameSize);
   size_t framesRead =
-      fread(samples, sizeof(int16_t), settings.frameSize, stdin);
+      fread(samples.data(), sizeof(int16_t), settings.frameSize, stdin);
 
   while (framesRead > 0) {
     {
@@ -435,7 +435,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Next samples
-    framesRead = fread(samples, sizeof(int16_t), settings.frameSize, stdin);
+    framesRead = fread(samples.data(), sizeof(int16_t), settings.frameSize, stdin);
   }
 
   // Signal mel thread that samples have been exhausted
