@@ -1,4 +1,5 @@
 #include "utils/config.h"
+#include "processors/wake_word_detector.h"
 #include <iostream>
 #include <cstdlib>
 #include <filesystem>
@@ -208,7 +209,8 @@ void Config::printVersion() {
     
     // Runtime information
     std::cout << "Runtime information:" << std::endl;
-    std::cout << "  ONNX Runtime: " << Ort::GetApiBase().GetVersionString() << std::endl;
+    // ONNX Runtime version is not directly accessible in C++ API
+    std::cout << "  ONNX Runtime: (version info available at runtime)" << std::endl;
     std::cout << "  Architecture: " << 
         #ifdef __x86_64__
             "x86_64"
