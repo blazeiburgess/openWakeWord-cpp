@@ -5,9 +5,12 @@
 #include <string>
 #include <vector>
 #include <onnxruntime_cxx_api.h>
-#include "processors/wake_word_detector.h"
+#include "core/types.h"
 
 namespace openwakeword {
+
+// Forward declaration
+struct WakeWordConfig;
 
 // Version information
 constexpr const char* VERSION = "1.0.0";
