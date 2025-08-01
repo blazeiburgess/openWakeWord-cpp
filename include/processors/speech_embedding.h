@@ -7,7 +7,7 @@
 #include "core/audio_processor.h"
 #include "core/model_wrapper.h"
 #include "core/types.h"
-#include "processors/mel_spectrogram.h"
+#include "core/thread_safe_buffer.h"
 #include "utils/config.h"
 
 namespace openwakeword {

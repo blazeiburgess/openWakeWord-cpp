@@ -1,9 +1,5 @@
 #include "processors/wake_word_detector.h"
 #include <algorithm>
-#include <iostream>
-#include <chrono>
-#include <iomanip>
-#include <sstream>
 
 namespace openwakeword {
 
@@ -40,47 +36,6 @@ bool WakeWordDetector::process() {
 void WakeWordDetector::reset() {
     todoFeatures_.clear();
     activationCount_ = 0;
-}
-
-void WakeWordDetector::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> input,
-                          std::mutex& outputMutex,
-                          OutputMode outputMode,
-                          bool showTimestamp) {
-    if (!initialized_) {
-        std::cerr << "[ERROR] WakeWordDetector not initialized: " << wakeWord_ << std::endl;
-        return;
-    }
-    
-    while (true) {
-        // Get features from input buffer
-        auto features = input->pull();
-        if (input->isExhausted() && features.empty()) {
-            break;
-        }
-        
-        // Accumulate features
-        todoFeatures_.insert(todoFeatures_.end(), features.begin(), features.end());
-        
-        // Process when we have enough features
-        size_t numBufferedFeatures = todoFeatures_.size() / EMBEDDING_FEATURES;
-        while (numBufferedFeatures >= WAKEWORD_FEATURES) {
-            // Extract features for one prediction
-            FeatureBuffer windowFeatures(todoFeatures_.begin(),
-                                       todoFeatures_.begin() + (WAKEWORD_FEATURES * EMBEDDING_FEATURES));
-            
-            // Run wake word detection
-            float probability = model_->predict(windowFeatures);
-            
-            // Process the prediction
-            processPrediction(probability, outputMutex, outputMode, showTimestamp);
-            
-            // Remove one embedding worth of features
-            todoFeatures_.erase(todoFeatures_.begin(),
-                               todoFeatures_.begin() + EMBEDDING_FEATURES);
-            
-            numBufferedFeatures = todoFeatures_.size() / EMBEDDING_FEATURES;
-        }
-    }
 }
 
 void WakeWordDetector::processPrediction(float probability, std::mutex& outputMutex,
