@@ -70,6 +70,16 @@ bool Config::parseArgs(int argc, char* argv[]) {
             if (!loadFromFile(argv[++i])) {
                 return false;
             }
+        } else if (arg == "--save-config") {
+            if (!ensureArg(argc, argv, i)) return false;
+            std::string configPath = argv[++i];
+            // Parse remaining arguments then save
+            if (!saveToFile(configPath)) {
+                std::cerr << "[ERROR] Failed to save configuration to: " << configPath << std::endl;
+                return false;
+            }
+            std::cout << "Configuration saved to: " << configPath << std::endl;
+            return false; // Exit after saving
         } else {
             std::cerr << "[ERROR] Unknown argument: " << arg << std::endl;
             printUsage(argv[0]);
