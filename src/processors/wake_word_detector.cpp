@@ -1,6 +1,9 @@
 #include "processors/wake_word_detector.h"
 #include <algorithm>
 #include <iostream>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 
 namespace openwakeword {
 
@@ -24,7 +27,7 @@ bool WakeWordDetector::initialize() {
         return false;
     }
     
-    std::cerr << "[LOG] Loaded " << wakeWord_ << " model" << std::endl;
+    // Log message handled by pipeline based on output mode
     initialized_ = true;
     return true;
 }
@@ -40,7 +43,9 @@ void WakeWordDetector::reset() {
 }
 
 void WakeWordDetector::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> input,
-                          std::mutex& outputMutex) {
+                          std::mutex& outputMutex,
+                          OutputMode outputMode,
+                          bool showTimestamp) {
     if (!initialized_) {
         std::cerr << "[ERROR] WakeWordDetector not initialized: " << wakeWord_ << std::endl;
         return;
@@ -67,7 +72,7 @@ void WakeWordDetector::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> input,
             float probability = model_->predict(windowFeatures);
             
             // Process the prediction
-            processPrediction(probability, outputMutex);
+            processPrediction(probability, outputMutex, outputMode, showTimestamp);
             
             // Remove one embedding worth of features
             todoFeatures_.erase(todoFeatures_.begin(),
@@ -78,7 +83,8 @@ void WakeWordDetector::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> input,
     }
 }
 
-void WakeWordDetector::processPrediction(float probability, std::mutex& outputMutex) {
+void WakeWordDetector::processPrediction(float probability, std::mutex& outputMutex,
+                                       OutputMode outputMode, bool showTimestamp) {
     if (config_.debug) {
         std::unique_lock<std::mutex> lock(outputMutex);
         std::cerr << wakeWord_ << " " << probability << std::endl;
@@ -92,7 +98,34 @@ void WakeWordDetector::processPrediction(float probability, std::mutex& outputMu
             // Trigger level reached - output detection
             {
                 std::unique_lock<std::mutex> lock(outputMutex);
-                std::cout << wakeWord_ << std::endl;
+                
+                if (outputMode == OutputMode::JSON) {
+                    // JSON output
+                    std::cout << "{";
+                    std::cout << "\"wake_word\":\"" << wakeWord_ << "\"";
+                    std::cout << ",\"score\":" << probability;
+                    if (showTimestamp) {
+                        auto now = std::chrono::system_clock::now();
+                        auto time_t = std::chrono::system_clock::to_time_t(now);
+                        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            now.time_since_epoch()) % 1000;
+                        
+                        std::stringstream ss;
+                        ss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M:%S");
+                        ss << "." << std::setfill('0') << std::setw(3) << ms.count();
+                        
+                        std::cout << ",\"timestamp\":\"" << ss.str() << "\"";
+                    }
+                    std::cout << "}" << std::endl;
+                } else {
+                    // Normal output
+                    if (showTimestamp) {
+                        auto now = std::chrono::system_clock::now();
+                        auto time_t = std::chrono::system_clock::to_time_t(now);
+                        std::cout << "[" << std::put_time(std::localtime(&time_t), "%H:%M:%S") << "] ";
+                    }
+                    std::cout << wakeWord_ << std::endl;
+                }
             }
             
             // Enter refractory period

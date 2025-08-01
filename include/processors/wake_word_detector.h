@@ -34,7 +34,9 @@ public:
     
     // Thread entry point
     void run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> input,
-             std::mutex& outputMutex);
+             std::mutex& outputMutex,
+             OutputMode outputMode,
+             bool showTimestamp);
     
     // Get configuration
     const WakeWordConfig& getConfig() const { return config_; }
@@ -52,7 +54,8 @@ private:
     int activationCount_ = 0;
     
     // Process a single prediction
-    void processPrediction(float probability, std::mutex& outputMutex);
+    void processPrediction(float probability, std::mutex& outputMutex,
+                          OutputMode outputMode, bool showTimestamp);
 };
 
 } // namespace openwakeword
