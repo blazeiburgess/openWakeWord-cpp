@@ -43,7 +43,7 @@ private:
     std::string wakeWord_;
     WakeWordConfig config_;
     Ort::Env& env_;
-    Ort::SessionOptions options_;
+    const Ort::SessionOptions& options_;
     
     std::unique_ptr<WakeWordModel> model_;
     std::vector<AudioFloat> todoFeatures_;

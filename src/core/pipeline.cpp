@@ -31,7 +31,7 @@ bool Pipeline::initialize() {
     }
     
     // Initialize mel spectrogram processor
-    melProcessor_ = std::make_unique<MelSpectrogramProcessor>(env_, config_.sessionOptions);
+    melProcessor_ = std::make_unique<MelSpectrogramProcessor>(env_, sessionOptions_);
     melProcessor_->setModelPath(config_.melModelPath);
     melProcessor_->setFrameSize(config_.frameSize);
     if (!melProcessor_->initialize()) {
@@ -40,7 +40,7 @@ bool Pipeline::initialize() {
     
     // Initialize speech embedding processor
     embeddingProcessor_ = std::make_unique<SpeechEmbeddingProcessor>(
-        env_, config_.sessionOptions, config_.wakeWordConfigs.size());
+        env_, sessionOptions_, config_.wakeWordConfigs.size());
     embeddingProcessor_->setModelPath(config_.embModelPath);
     if (!embeddingProcessor_->initialize()) {
         return false;
@@ -50,7 +50,7 @@ bool Pipeline::initialize() {
     for (const auto& wwConfig : config_.wakeWordConfigs) {
         auto wakeWord = wwConfig.modelPath.stem().string();
         auto detector = std::make_unique<WakeWordDetector>(
-            wakeWord, wwConfig, env_, config_.sessionOptions);
+            wakeWord, wwConfig, env_, sessionOptions_);
         if (!detector->initialize()) {
             return false;
         }

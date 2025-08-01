@@ -31,7 +31,7 @@ public:
     
 private:
     Ort::Env& env_;
-    Ort::SessionOptions options_;
+    const Ort::SessionOptions& options_;
     std::filesystem::path modelPath_;
     size_t numWakeWords_;
     
