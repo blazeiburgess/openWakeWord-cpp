@@ -179,6 +179,7 @@ VADModel::VADModel()
 float VADModel::predictVoiceActivity(const AudioBuffer& samples) {
     // TODO: Implement VAD prediction
     // This will depend on the specific VAD model architecture
+    (void)samples; // Suppress unused parameter warning
     return 1.0f;  // Placeholder
 }
 

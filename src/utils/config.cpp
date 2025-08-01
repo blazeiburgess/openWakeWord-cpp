@@ -81,6 +81,7 @@ bool Config::parseArgs(int argc, char* argv[]) {
 
 bool Config::loadFromFile(const std::filesystem::path& configPath) {
     // TODO: Implement JSON/YAML configuration file loading
+    (void)configPath; // Suppress unused parameter warning
     std::cerr << "[WARNING] Configuration file loading not yet implemented" << std::endl;
     return true;
 }
