@@ -8,7 +8,7 @@
 #include "core/audio_processor.h"
 #include "core/model_wrapper.h"
 #include "core/types.h"
-#include "processors/mel_spectrogram.h"
+#include "utils/config.h"
 
 namespace openwakeword {
 
@@ -33,7 +33,8 @@ public:
     void reset() override;
     
     // Thread entry point
-    void run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> input,
+    template<typename BufferType>
+    void run(std::shared_ptr<BufferType> input,
              std::mutex& outputMutex,
              OutputMode outputMode,
              bool showTimestamp);
