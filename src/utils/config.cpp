@@ -201,4 +201,134 @@ bool Config::ensureArg(int argc, char* argv[], int& index) {
     return true;
 }
 
+void Config::printVersion() {
+    std::cout << "openWakeWord C++ v" << VERSION << std::endl;
+    std::cout << "Build date: " << BUILD_DATE << " " << BUILD_TIME << std::endl;
+    std::cout << std::endl;
+    
+    // Runtime information
+    std::cout << "Runtime information:" << std::endl;
+    std::cout << "  ONNX Runtime: " << Ort::GetApiBase().GetVersionString() << std::endl;
+    std::cout << "  Architecture: " << 
+        #ifdef __x86_64__
+            "x86_64"
+        #elif defined(__aarch64__)
+            "aarch64"
+        #else
+            "unknown"
+        #endif
+        << std::endl;
+    
+    // Feature availability
+    std::cout << std::endl;
+    std::cout << "Features:" << std::endl;
+    std::cout << "  Speex noise suppression: " << 
+        #ifdef HAVE_SPEEX
+            "Available"
+        #else
+            "Not available"
+        #endif
+        << std::endl;
+    std::cout << "  C++ standard: C++" << __cplusplus / 100 % 100 << std::endl;
+}
+
+void Config::listAvailableModels() {
+    std::cout << "Available wake word models:" << std::endl;
+    std::cout << std::endl;
+    
+    // Check models directory
+    std::filesystem::path modelsDir = "models";
+    if (!std::filesystem::exists(modelsDir)) {
+        std::cerr << "[ERROR] Models directory not found: " << modelsDir << std::endl;
+        return;
+    }
+    
+    // List all .onnx files
+    std::vector<std::filesystem::path> models;
+    for (const auto& entry : std::filesystem::directory_iterator(modelsDir)) {
+        if (entry.path().extension() == ".onnx") {
+            auto filename = entry.path().filename().string();
+            // Skip mel and embedding models
+            if (filename.find("melspectrogram") == std::string::npos &&
+                filename.find("embedding") == std::string::npos &&
+                filename.find("silero_vad") == std::string::npos) {
+                models.push_back(entry.path());
+            }
+        }
+    }
+    
+    // Sort models
+    std::sort(models.begin(), models.end());
+    
+    // Display models
+    if (models.empty()) {
+        std::cout << "  No wake word models found in " << modelsDir << std::endl;
+    } else {
+        for (const auto& model : models) {
+            std::string name = model.stem().string();
+            std::replace(name.begin(), name.end(), '_', ' ');
+            
+            // Extract wake word from filename
+            std::string wakeWord = name;
+            auto pos = wakeWord.find(" v");
+            if (pos != std::string::npos) {
+                wakeWord = wakeWord.substr(0, pos);
+            }
+            
+            std::cout << "  " << std::left << std::setw(25) << model.filename().string() 
+                      << " - \"" << wakeWord << "\"" << std::endl;
+        }
+    }
+    
+    std::cout << std::endl;
+    std::cout << "Usage: --model " << modelsDir / "model_name.onnx" << std::endl;
+}
+
+bool Config::saveToFile(const std::filesystem::path& configPath) const {
+    std::ofstream file(configPath);
+    if (!file.is_open()) {
+        std::cerr << "[ERROR] Cannot open file for writing: " << configPath << std::endl;
+        return false;
+    }
+    
+    // Write configuration in simple key=value format
+    file << "# openWakeWord configuration file" << std::endl;
+    file << "# Generated on " << BUILD_DATE << std::endl;
+    file << std::endl;
+    
+    file << "# Detection parameters" << std::endl;
+    file << "threshold=" << threshold << std::endl;
+    file << "trigger_level=" << triggerLevel << std::endl;
+    file << "refractory=" << refractorySteps << std::endl;
+    file << "step_frames=" << (frameSize / CHUNK_SAMPLES) << std::endl;
+    file << std::endl;
+    
+    file << "# Models" << std::endl;
+    for (const auto& model : wakeWordModelPaths) {
+        file << "model=" << model.string() << std::endl;
+    }
+    file << "melspectrogram_model=" << melModelPath.string() << std::endl;
+    file << "embedding_model=" << embModelPath.string() << std::endl;
+    file << std::endl;
+    
+    file << "# Audio processing" << std::endl;
+    if (enableVAD) {
+        file << "vad_threshold=" << vadThreshold << std::endl;
+        file << "vad_model=" << vadModelPath.string() << std::endl;
+    }
+    file << "noise_suppression=" << (enableNoiseSuppression ? "true" : "false") << std::endl;
+    file << std::endl;
+    
+    file << "# Output" << std::endl;
+    file << "debug=" << (debug ? "true" : "false") << std::endl;
+    file << "quiet=" << (outputMode == OutputMode::QUIET ? "true" : "false") << std::endl;
+    file << "verbose=" << (outputMode == OutputMode::VERBOSE ? "true" : "false") << std::endl;
+    file << "json=" << (jsonOutput ? "true" : "false") << std::endl;
+    file << "timestamp=" << (showTimestamp ? "true" : "false") << std::endl;
+    
+    file.close();
+    std::cerr << "[LOG] Configuration saved to " << configPath << std::endl;
+    return true;
+}
+
 } // namespace openwakeword
