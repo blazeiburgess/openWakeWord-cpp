@@ -19,7 +19,7 @@ bool MelSpectrogramProcessor::initialize() {
         return false;
     }
     
-    std::cerr << "[LOG] Loaded mel spectrogram model" << std::endl;
+    // Log message handled by pipeline based on output mode
     initialized_ = true;
     return true;
 }
