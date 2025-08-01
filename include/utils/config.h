@@ -9,6 +9,19 @@
 
 namespace openwakeword {
 
+// Version information
+constexpr const char* VERSION = "1.0.0";
+constexpr const char* BUILD_DATE = __DATE__;
+constexpr const char* BUILD_TIME = __TIME__;
+
+// Output modes
+enum class OutputMode {
+    NORMAL,
+    QUIET,
+    VERBOSE,
+    JSON
+};
+
 // Main configuration structure
 struct Config {
     // Model paths
@@ -36,6 +49,11 @@ struct Config {
     
     bool enableNoiseSuppression = false;
     
+    // Output control
+    OutputMode outputMode = OutputMode::NORMAL;
+    bool showTimestamp = false;
+    bool jsonOutput = false;
+    
     // Advanced options
     bool enableCustomVerifiers = false;
     float customVerifierThreshold = 0.1f;
@@ -55,6 +73,15 @@ struct Config {
     
     // Print usage
     static void printUsage(const char* programName);
+    
+    // Print version information
+    static void printVersion();
+    
+    // List available models
+    static void listAvailableModels();
+    
+    // Save configuration to file
+    bool saveToFile(const std::filesystem::path& configPath) const;
     
 private:
     // Helper to ensure argument exists
