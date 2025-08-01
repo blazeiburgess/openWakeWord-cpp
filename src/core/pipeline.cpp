@@ -84,7 +84,8 @@ void Pipeline::start() {
     for (size_t i = 0; i < detectors_.size(); ++i) {
         detectorThreads_.emplace_back([this, i]() {
             incrementReady();
-            detectors_[i]->run(featureBuffers_[i], outputMutex_);
+            detectors_[i]->run(featureBuffers_[i], outputMutex_, 
+                              config_.outputMode, config_.showTimestamp);
         });
     }
 }
