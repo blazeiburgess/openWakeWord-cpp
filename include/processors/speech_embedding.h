@@ -9,6 +9,7 @@
 #include "core/types.h"
 #include "core/thread_safe_buffer.h"
 #include "utils/config.h"
+#include "utils/ring_buffer.h"
 
 namespace openwakeword {
 
@@ -38,7 +39,7 @@ private:
     size_t numWakeWords_;
     
     std::unique_ptr<EmbeddingModel> model_;
-    std::vector<AudioFloat> todoMels_;
+    RingBuffer<AudioFloat> melBuffer_;
 };
 
 } // namespace openwakeword
