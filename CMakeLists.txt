@@ -31,10 +31,25 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 # Platform detection for library paths
-if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+if(WIN32)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(ARCH_DIR "x64")
+    else()
+        set(ARCH_DIR "x86")
+    endif()
+elseif(APPLE)
+    # macOS uses different naming
+    if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm64")
+        set(ARCH_DIR "arm64")
+    else()
+        set(ARCH_DIR "x86_64")
+    endif()
+elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
     set(ARCH_DIR "x86_64")
-elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "aarch64")
     set(ARCH_DIR "aarch64")
+elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm64")
+    set(ARCH_DIR "arm64")
 else()
     set(ARCH_DIR ${CMAKE_HOST_SYSTEM_PROCESSOR})
 endif()
@@ -48,10 +63,21 @@ find_package(Threads REQUIRED)
 # Optional: Find Speex for noise suppression
 find_package(PkgConfig)
 if(PKG_CONFIG_FOUND)
-    pkg_check_modules(SPEEXDSP speexdsp)
+    pkg_check_modules(SPEEXDSP IMPORTED_TARGET speexdsp)
     if(SPEEXDSP_FOUND)
         message(STATUS "Found Speex DSP library - noise suppression will be available")
         add_definitions(-DHAVE_SPEEX)
+        
+        # Debug output for pkg-config variables
+        message(STATUS "SPEEXDSP_VERSION: ${SPEEXDSP_VERSION}")
+        message(STATUS "SPEEXDSP_PREFIX: ${SPEEXDSP_PREFIX}")
+        message(STATUS "SPEEXDSP_LIBDIR: ${SPEEXDSP_LIBDIR}")
+        message(STATUS "SPEEXDSP_LIBRARY_DIRS: ${SPEEXDSP_LIBRARY_DIRS}")
+        message(STATUS "SPEEXDSP_LIBRARIES: ${SPEEXDSP_LIBRARIES}")
+        message(STATUS "SPEEXDSP_LINK_LIBRARIES: ${SPEEXDSP_LINK_LIBRARIES}")
+        message(STATUS "SPEEXDSP_INCLUDE_DIRS: ${SPEEXDSP_INCLUDE_DIRS}")
+        message(STATUS "SPEEXDSP_CFLAGS: ${SPEEXDSP_CFLAGS}")
+        message(STATUS "SPEEXDSP_LDFLAGS: ${SPEEXDSP_LDFLAGS}")
     else()
         message(STATUS "Speex DSP library not found - noise suppression will be disabled")
     endif()
@@ -107,8 +133,7 @@ target_link_libraries(openwakeword PRIVATE
 
 # Link optional libraries
 if(SPEEXDSP_FOUND)
-    target_link_libraries(openwakeword PRIVATE ${SPEEXDSP_LIBRARIES})
-    target_include_directories(openwakeword PRIVATE ${SPEEXDSP_INCLUDE_DIRS})
+    target_link_libraries(openwakeword PRIVATE PkgConfig::SPEEXDSP)
 endif()
 
 # Set rpath for finding shared libraries at runtime
@@ -125,7 +150,14 @@ elseif(APPLE)
 endif()
 
 # Copy ONNX Runtime shared libraries to output directory
-file(GLOB ONNX_RUNTIME_LIBS "${ONNXRUNTIME_LIB_DIR}/*.so*" "${ONNXRUNTIME_LIB_DIR}/*.dylib*")
+if(WIN32)
+    file(GLOB ONNX_RUNTIME_LIBS "${ONNXRUNTIME_LIB_DIR}/*.dll")
+elseif(APPLE)
+    file(GLOB ONNX_RUNTIME_LIBS "${ONNXRUNTIME_LIB_DIR}/*.dylib")
+else()
+    file(GLOB ONNX_RUNTIME_LIBS "${ONNXRUNTIME_LIB_DIR}/*.so*")
+endif()
+
 foreach(lib ${ONNX_RUNTIME_LIBS})
     add_custom_command(TARGET openwakeword POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different

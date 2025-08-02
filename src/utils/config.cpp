@@ -11,7 +11,7 @@
 
 namespace openwakeword {
 
-bool Config::parseArgs(int argc, char* argv[]) {
+ParseResult Config::parseArgs(int argc, char* argv[]) {
     std::string saveConfigPath;
     bool shouldSaveConfig = false;
     
@@ -19,32 +19,32 @@ bool Config::parseArgs(int argc, char* argv[]) {
         std::string arg = argv[i];
         
         if (arg == "-m" || arg == "--model") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             wakeWordModelPaths.push_back(argv[++i]);
         } else if (arg == "-t" || arg == "--threshold") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             threshold = std::atof(argv[++i]);
         } else if (arg == "-l" || arg == "--trigger-level") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             triggerLevel = std::atoi(argv[++i]);
         } else if (arg == "-r" || arg == "--refractory") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             refractorySteps = std::atoi(argv[++i]);
         } else if (arg == "--step-frames") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             stepFrames = std::atoi(argv[++i]);
         } else if (arg == "--melspectrogram-model") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             melModelPath = argv[++i];
         } else if (arg == "--embedding-model") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             embModelPath = argv[++i];
         } else if (arg == "--vad-threshold") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             vadThreshold = std::atof(argv[++i]);
             enableVAD = true;
         } else if (arg == "--vad-model") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             vadModelPath = argv[++i];
             enableVAD = true;
         } else if (arg == "--enable-noise-suppression") {
@@ -62,26 +62,26 @@ bool Config::parseArgs(int argc, char* argv[]) {
             showTimestamp = true;
         } else if (arg == "--version") {
             printVersion();
-            return false;
+            return ParseResult::INFO_EXIT;
         } else if (arg == "--list-models") {
             listAvailableModels();
-            return false;
+            return ParseResult::INFO_EXIT;
         } else if (arg == "-h" || arg == "--help") {
             printUsage(argv[0]);
-            return false;
+            return ParseResult::INFO_EXIT;
         } else if (arg == "-c" || arg == "--config") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             if (!loadFromFile(argv[++i])) {
-                return false;
+                return ParseResult::ERROR_EXIT;
             }
         } else if (arg == "--save-config") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             saveConfigPath = argv[++i];
             shouldSaveConfig = true;
         } else {
             std::cerr << "[ERROR] Unknown argument: " << arg << std::endl;
             printUsage(argv[0]);
-            return false;
+            return ParseResult::ERROR_EXIT;
         }
     }
     
@@ -89,10 +89,10 @@ bool Config::parseArgs(int argc, char* argv[]) {
     if (shouldSaveConfig) {
         if (!saveToFile(saveConfigPath)) {
             std::cerr << "[ERROR] Failed to save configuration to: " << saveConfigPath << std::endl;
-            return false;
+            return ParseResult::ERROR_EXIT;
         }
         std::cout << "Configuration saved to: " << saveConfigPath << std::endl;
-        return false; // Exit after saving
+        return ParseResult::INFO_EXIT; // Exit after saving
     }
     
     // Update frame size based on step frames
@@ -115,7 +115,7 @@ bool Config::parseArgs(int argc, char* argv[]) {
         }
     }
     
-    return validate();
+    return validate() ? ParseResult::SUCCESS : ParseResult::ERROR_EXIT;
 }
 
 bool Config::loadFromFile(const std::filesystem::path& configPath) {

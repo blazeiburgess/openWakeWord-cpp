@@ -25,6 +25,13 @@ enum class OutputMode {
     JSON
 };
 
+// Parse result to distinguish between errors and informational exits
+enum class ParseResult {
+    SUCCESS,        // Continue running
+    INFO_EXIT,      // Exit with success (e.g., --version, --help)
+    ERROR_EXIT      // Exit with error
+};
+
 // Main configuration structure
 struct Config {
     // Model paths
@@ -66,7 +73,7 @@ struct Config {
     int interOpNumThreads = 1;
     
     // Parse command line arguments
-    bool parseArgs(int argc, char* argv[]);
+    ParseResult parseArgs(int argc, char* argv[]);
     
     // Load from configuration file
     bool loadFromFile(const std::filesystem::path& configPath);

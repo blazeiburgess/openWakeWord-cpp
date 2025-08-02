@@ -30,8 +30,11 @@ int main(int argc, char *argv[]) {
     
     // Parse configuration
     Config config;
-    if (!config.parseArgs(argc, argv)) {
+    ParseResult parseResult = config.parseArgs(argc, argv);
+    if (parseResult == ParseResult::ERROR_EXIT) {
         return 1;
+    } else if (parseResult == ParseResult::INFO_EXIT) {
+        return 0;
     }
     
     // Create and initialize pipeline
