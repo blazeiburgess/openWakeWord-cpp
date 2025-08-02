@@ -1,0 +1,219 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+env:
+  ONNX_VERSION: "1.21.1"
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }} ${{ matrix.compiler }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds
+          - os: ubuntu-latest
+            compiler: gcc
+            cpp_compiler: g++
+            build_type: Release
+            arch: x86_64
+            
+          - os: ubuntu-latest
+            compiler: clang
+            cpp_compiler: clang++
+            build_type: Release
+            arch: x86_64
+            
+          # Windows builds
+          - os: windows-latest
+            compiler: cl
+            cpp_compiler: cl
+            build_type: Release
+            arch: x64
+            cmake_generator: "Visual Studio 17 2022"
+            
+          # macOS builds
+          - os: macos-latest
+            compiler: clang
+            cpp_compiler: clang++
+            build_type: Release
+            arch: universal
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Cache ONNX Runtime
+      id: cache-onnx
+      uses: actions/cache@v3
+      with:
+        path: lib/
+        key: ${{ runner.os }}-${{ matrix.arch }}-onnx-${{ env.ONNX_VERSION }}
+        
+    # Linux specific setup
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake libspeexdsp-dev
+        
+    # Windows specific setup
+    - name: Setup MSVC
+      if: runner.os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@v1
+      
+    # macOS specific setup
+    - name: Install macOS dependencies
+      if: runner.os == 'macOS'
+      run: |
+        brew install cmake speexdsp
+        
+    # Download ONNX Runtime if not cached
+    - name: Download ONNX Runtime (Linux)
+      if: runner.os == 'Linux' && steps.cache-onnx.outputs.cache-hit != 'true'
+      run: |
+        chmod +x download_onnxruntime.sh
+        ./download_onnxruntime.sh
+        
+    - name: Download ONNX Runtime (Windows)
+      if: runner.os == 'Windows' && steps.cache-onnx.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        $arch = "x64"
+        $onnxFile = "onnxruntime-win-$arch-gpu-${{ env.ONNX_VERSION }}"
+        $downloadUrl = "https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/$onnxFile.zip"
+        $destDir = "lib/$arch"
+        
+        Write-Host "Creating directory: $destDir"
+        New-Item -ItemType Directory -Force -Path $destDir
+        
+        Write-Host "Downloading ONNX Runtime..."
+        Invoke-WebRequest -Uri $downloadUrl -OutFile "$destDir/onnxruntime.zip"
+        
+        Write-Host "Extracting..."
+        Expand-Archive -Path "$destDir/onnxruntime.zip" -DestinationPath $destDir -Force
+        
+        Write-Host "Moving files..."
+        Get-ChildItem "$destDir/$onnxFile/lib/*" | Move-Item -Destination $destDir -Force
+        if (Test-Path "$destDir/$onnxFile/include") {
+            Copy-Item -Path "$destDir/$onnxFile/include" -Destination $destDir -Recurse -Force
+        }
+        
+        Write-Host "Cleaning up..."
+        Remove-Item -Path "$destDir/$onnxFile" -Recurse -Force
+        Remove-Item -Path "$destDir/onnxruntime.zip" -Force
+        
+    - name: Download ONNX Runtime (macOS)
+      if: runner.os == 'macOS' && steps.cache-onnx.outputs.cache-hit != 'true'
+      run: |
+        # Create download script for macOS
+        cat > download_onnxruntime_macos.sh << 'EOF'
+        #!/bin/bash
+        ARCH=$(uname -m)
+        ONNX_VERSION="${{ env.ONNX_VERSION }}"
+        
+        if [ "$ARCH" = "arm64" ]; then
+            ONNX_FILE="onnxruntime-osx-arm64-${ONNX_VERSION}"
+        else
+            ONNX_FILE="onnxruntime-osx-x86_64-${ONNX_VERSION}"
+        fi
+        
+        DOWNLOAD_URL="https://github.com/microsoft/onnxruntime/releases/download/v${ONNX_VERSION}/${ONNX_FILE}.tgz"
+        DEST_DIR="lib/${ARCH}"
+        
+        echo "Creating directory: $DEST_DIR"
+        mkdir -p "$DEST_DIR"
+        
+        echo "Downloading ONNX Runtime for macOS ${ARCH}..."
+        cd "$DEST_DIR" || exit 1
+        curl -L -o onnxruntime.tgz "$DOWNLOAD_URL"
+        
+        echo "Extracting..."
+        tar -xzf onnxruntime.tgz
+        
+        echo "Moving files..."
+        mv ${ONNX_FILE}/lib/* .
+        if [ -d "${ONNX_FILE}/include" ]; then
+            cp -r ${ONNX_FILE}/include .
+        fi
+        
+        echo "Cleaning up..."
+        rm -rf ${ONNX_FILE} onnxruntime.tgz
+        EOF
+        
+        chmod +x download_onnxruntime_macos.sh
+        ./download_onnxruntime_macos.sh
+        
+    # Configure and build
+    - name: Configure CMake (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DCMAKE_C_COMPILER=${{ matrix.compiler }} \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          
+    - name: Configure CMake (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        cmake -B build `
+          -G "${{ matrix.cmake_generator }}" `
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          
+    - name: Build
+      run: |
+        cmake --build build --config ${{ matrix.build_type }} --parallel
+        
+    - name: List build artifacts
+      run: |
+        ls -la build/bin/ || dir build\bin\
+        
+    # Run basic tests
+    - name: Test binary exists and runs
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          build/bin/${{ matrix.build_type }}/openwakeword.exe --version
+        else
+          build/bin/openwakeword --version
+        fi
+      shell: bash
+      
+    # Package artifacts
+    - name: Package artifacts (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        mkdir -p dist/openwakeword-${{ matrix.os }}-${{ matrix.compiler }}
+        cp -r build/bin/* dist/openwakeword-${{ matrix.os }}-${{ matrix.compiler }}/
+        cp -r models dist/openwakeword-${{ matrix.os }}-${{ matrix.compiler }}/
+        tar -czf openwakeword-${{ matrix.os }}-${{ matrix.compiler }}.tar.gz -C dist .
+        
+    - name: Package artifacts (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path "dist/openwakeword-${{ matrix.os }}-${{ matrix.compiler }}"
+        Copy-Item -Path "build/bin/${{ matrix.build_type }}/*" -Destination "dist/openwakeword-${{ matrix.os }}-${{ matrix.compiler }}/" -Recurse
+        Copy-Item -Path "models" -Destination "dist/openwakeword-${{ matrix.os }}-${{ matrix.compiler }}/" -Recurse
+        Compress-Archive -Path "dist/*" -DestinationPath "openwakeword-${{ matrix.os }}-${{ matrix.compiler }}.zip"
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: openwakeword-${{ matrix.os }}-${{ matrix.compiler }}
+        path: |
+          openwakeword-*.tar.gz
+          openwakeword-*.zip
+        retention-days: 7
