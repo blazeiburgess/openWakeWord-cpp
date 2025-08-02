@@ -25,6 +25,13 @@ enum class OutputMode {
     JSON
 };
 
+// Parse result to distinguish between errors and informational exits
+enum class ParseResult {
+    SUCCESS,        // Continue running
+    INFO_EXIT,      // Exit with success (e.g., --version, --help)
+    ERROR_EXIT      // Exit with error
+};
+
 // Main configuration structure
 struct Config {
     // Model paths
