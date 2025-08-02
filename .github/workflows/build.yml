@@ -178,8 +178,14 @@ jobs:
         cmake --build build --config ${{ matrix.build_type }} --parallel
         
     - name: List build artifacts
+      shell: bash
       run: |
-        ls -la build/bin/ || dir build\bin\
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          ls build/bin/ || true
+          ls build/bin/Release/ || true
+        else
+          ls -la build/bin/ || true
+        fi
         
     # Run basic tests
     - name: Test binary exists and runs
