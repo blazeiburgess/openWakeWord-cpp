@@ -19,32 +19,32 @@ ParseResult Config::parseArgs(int argc, char* argv[]) {
         std::string arg = argv[i];
         
         if (arg == "-m" || arg == "--model") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             wakeWordModelPaths.push_back(argv[++i]);
         } else if (arg == "-t" || arg == "--threshold") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             threshold = std::atof(argv[++i]);
         } else if (arg == "-l" || arg == "--trigger-level") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             triggerLevel = std::atoi(argv[++i]);
         } else if (arg == "-r" || arg == "--refractory") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             refractorySteps = std::atoi(argv[++i]);
         } else if (arg == "--step-frames") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             stepFrames = std::atoi(argv[++i]);
         } else if (arg == "--melspectrogram-model") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             melModelPath = argv[++i];
         } else if (arg == "--embedding-model") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             embModelPath = argv[++i];
         } else if (arg == "--vad-threshold") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             vadThreshold = std::atof(argv[++i]);
             enableVAD = true;
         } else if (arg == "--vad-model") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             vadModelPath = argv[++i];
             enableVAD = true;
         } else if (arg == "--enable-noise-suppression") {
