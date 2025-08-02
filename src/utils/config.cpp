@@ -6,11 +6,15 @@
 #include <algorithm>
 #include <iomanip>
 #include <fstream>
+#include <sstream>
 #include <onnxruntime_cxx_api.h>
 
 namespace openwakeword {
 
 bool Config::parseArgs(int argc, char* argv[]) {
+    std::string saveConfigPath;
+    bool shouldSaveConfig = false;
+    
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
         
@@ -72,19 +76,23 @@ bool Config::parseArgs(int argc, char* argv[]) {
             }
         } else if (arg == "--save-config") {
             if (!ensureArg(argc, argv, i)) return false;
-            std::string configPath = argv[++i];
-            // Parse remaining arguments then save
-            if (!saveToFile(configPath)) {
-                std::cerr << "[ERROR] Failed to save configuration to: " << configPath << std::endl;
-                return false;
-            }
-            std::cout << "Configuration saved to: " << configPath << std::endl;
-            return false; // Exit after saving
+            saveConfigPath = argv[++i];
+            shouldSaveConfig = true;
         } else {
             std::cerr << "[ERROR] Unknown argument: " << arg << std::endl;
             printUsage(argv[0]);
             return false;
         }
+    }
+    
+    // If save-config was specified, save and exit
+    if (shouldSaveConfig) {
+        if (!saveToFile(saveConfigPath)) {
+            std::cerr << "[ERROR] Failed to save configuration to: " << saveConfigPath << std::endl;
+            return false;
+        }
+        std::cout << "Configuration saved to: " << saveConfigPath << std::endl;
+        return false; // Exit after saving
     }
     
     // Update frame size based on step frames
@@ -111,9 +119,66 @@ bool Config::parseArgs(int argc, char* argv[]) {
 }
 
 bool Config::loadFromFile(const std::filesystem::path& configPath) {
-    // TODO: Implement JSON/YAML configuration file loading
-    (void)configPath; // Suppress unused parameter warning
-    std::cerr << "[WARNING] Configuration file loading not yet implemented" << std::endl;
+    if (!std::filesystem::exists(configPath)) {
+        std::cerr << "[ERROR] Configuration file not found: " << configPath << std::endl;
+        return false;
+    }
+    
+    std::ifstream file(configPath);
+    if (!file.is_open()) {
+        std::cerr << "[ERROR] Failed to open configuration file: " << configPath << std::endl;
+        return false;
+    }
+    
+    // Simple key-value parser
+    std::string line;
+    while (std::getline(file, line)) {
+        // Skip empty lines and comments
+        if (line.empty() || line[0] == '#') continue;
+        
+        // Find delimiter
+        size_t pos = line.find('=');
+        if (pos == std::string::npos) continue;
+        
+        std::string key = line.substr(0, pos);
+        std::string value = line.substr(pos + 1);
+        
+        // Trim whitespace
+        key.erase(0, key.find_first_not_of(" \t"));
+        key.erase(key.find_last_not_of(" \t") + 1);
+        value.erase(0, value.find_first_not_of(" \t"));
+        value.erase(value.find_last_not_of(" \t") + 1);
+        
+        // Parse key-value pairs
+        if (key == "melspectrogram_model") melModelPath = value;
+        else if (key == "embedding_model") embModelPath = value;
+        else if (key == "model") wakeWordModelPaths.push_back(value);
+        else if (key == "threshold") threshold = std::stof(value);
+        else if (key == "trigger_level") triggerLevel = std::stoi(value);
+        else if (key == "refractory") refractorySteps = std::stoi(value);
+        else if (key == "stepFrames") stepFrames = std::stoi(value);
+        else if (key == "debug") debug = (value == "true" || value == "1");
+        else if (key == "enableVAD") enableVAD = (value == "true" || value == "1");
+        else if (key == "vadThreshold") vadThreshold = std::stof(value);
+        else if (key == "vadModelPath") vadModelPath = value;
+        else if (key == "noise_suppression") enableNoiseSuppression = (value == "true" || value == "1");
+        else if (key == "quiet") {
+            if (value == "true" || value == "1") outputMode = OutputMode::QUIET;
+        }
+        else if (key == "verbose") {
+            if (value == "true" || value == "1") outputMode = OutputMode::VERBOSE;
+        }
+        else if (key == "json") {
+            if (value == "true" || value == "1") {
+                outputMode = OutputMode::JSON;
+                jsonOutput = true;
+            }
+        }
+        else if (key == "timestamp") showTimestamp = (value == "true" || value == "1");
+        else if (key == "intraOpNumThreads") intraOpNumThreads = std::stoi(value);
+        else if (key == "interOpNumThreads") interOpNumThreads = std::stoi(value);
+    }
+    
     return true;
 }
 
@@ -170,6 +235,7 @@ void Config::printUsage(const char* programName) {
     std::cerr << "  --version                     Show version information" << std::endl;
     std::cerr << "  --list-models                 List available wake word models" << std::endl;
     std::cerr << "  -c, --config FILE             Load configuration from file" << std::endl;
+    std::cerr << "  --save-config FILE            Save current configuration to file and exit" << std::endl;
     std::cerr << std::endl;
     std::cerr << "MODEL OPTIONS:" << std::endl;
     std::cerr << "  -m, --model FILE              Path to wake word model (can be repeated)" << std::endl;
