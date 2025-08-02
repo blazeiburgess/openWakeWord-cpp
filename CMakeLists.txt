@@ -63,10 +63,21 @@ find_package(Threads REQUIRED)
 # Optional: Find Speex for noise suppression
 find_package(PkgConfig)
 if(PKG_CONFIG_FOUND)
-    pkg_check_modules(SPEEXDSP speexdsp)
+    pkg_check_modules(SPEEXDSP IMPORTED_TARGET speexdsp)
     if(SPEEXDSP_FOUND)
         message(STATUS "Found Speex DSP library - noise suppression will be available")
         add_definitions(-DHAVE_SPEEX)
+        
+        # Debug output for pkg-config variables
+        message(STATUS "SPEEXDSP_VERSION: ${SPEEXDSP_VERSION}")
+        message(STATUS "SPEEXDSP_PREFIX: ${SPEEXDSP_PREFIX}")
+        message(STATUS "SPEEXDSP_LIBDIR: ${SPEEXDSP_LIBDIR}")
+        message(STATUS "SPEEXDSP_LIBRARY_DIRS: ${SPEEXDSP_LIBRARY_DIRS}")
+        message(STATUS "SPEEXDSP_LIBRARIES: ${SPEEXDSP_LIBRARIES}")
+        message(STATUS "SPEEXDSP_LINK_LIBRARIES: ${SPEEXDSP_LINK_LIBRARIES}")
+        message(STATUS "SPEEXDSP_INCLUDE_DIRS: ${SPEEXDSP_INCLUDE_DIRS}")
+        message(STATUS "SPEEXDSP_CFLAGS: ${SPEEXDSP_CFLAGS}")
+        message(STATUS "SPEEXDSP_LDFLAGS: ${SPEEXDSP_LDFLAGS}")
     else()
         message(STATUS "Speex DSP library not found - noise suppression will be disabled")
     endif()
@@ -122,8 +133,7 @@ target_link_libraries(openwakeword PRIVATE
 
 # Link optional libraries
 if(SPEEXDSP_FOUND)
-    target_link_libraries(openwakeword PRIVATE ${SPEEXDSP_LIBRARIES})
-    target_include_directories(openwakeword PRIVATE ${SPEEXDSP_INCLUDE_DIRS})
+    target_link_libraries(openwakeword PRIVATE PkgConfig::SPEEXDSP)
 endif()
 
 # Set rpath for finding shared libraries at runtime
