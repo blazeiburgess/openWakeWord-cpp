@@ -106,9 +106,9 @@ jobs:
     - name: Download ONNX Runtime
       shell: pwsh
       run: |
-        $onnxVersion = "1.21.1"
+        $onnxVersion = "1.22.0"
         $arch = "x64"
-        $onnxFile = "onnxruntime-win-$arch-gpu-$onnxVersion"
+        $onnxFile = "onnxruntime-win-$arch-$onnxVersion"
         $downloadUrl = "https://github.com/microsoft/onnxruntime/releases/download/v$onnxVersion/$onnxFile.zip"
         $destDir = "lib/$arch"
         
