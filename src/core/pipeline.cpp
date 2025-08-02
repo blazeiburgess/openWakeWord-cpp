@@ -9,9 +9,20 @@ Pipeline::Pipeline(const Config& config)
       env_(OrtLoggingLevel::ORT_LOGGING_LEVEL_WARNING, "openWakeWord") {
     env_.DisableTelemetryEvents();
     
-    // Configure session options
+    // Configure session options for optimal performance
     sessionOptions_.SetIntraOpNumThreads(config_.intraOpNumThreads);
     sessionOptions_.SetInterOpNumThreads(config_.interOpNumThreads);
+    
+    // Memory optimization: Use arena allocator for better memory reuse
+    sessionOptions_.EnableCpuMemArena();
+    sessionOptions_.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
+    
+    // Graph optimization level
+    sessionOptions_.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+    
+    // Memory pattern optimization
+    sessionOptions_.EnableMemPattern();
+    sessionOptions_.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
     
     // Calculate expected ready count
     expectedReadyCount_ = 2 + config_.wakeWordConfigs.size(); // mel + embedding + wake words
