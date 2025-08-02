@@ -142,8 +142,10 @@ endif()
 # Copy ONNX Runtime shared libraries to output directory
 if(WIN32)
     file(GLOB ONNX_RUNTIME_LIBS "${ONNXRUNTIME_LIB_DIR}/*.dll")
+elseif(APPLE)
+    file(GLOB ONNX_RUNTIME_LIBS "${ONNXRUNTIME_LIB_DIR}/*.dylib")
 else()
-    file(GLOB ONNX_RUNTIME_LIBS "${ONNXRUNTIME_LIB_DIR}/*.so*" "${ONNXRUNTIME_LIB_DIR}/*.dylib*")
+    file(GLOB ONNX_RUNTIME_LIBS "${ONNXRUNTIME_LIB_DIR}/*.so*")
 endif()
 
 foreach(lib ${ONNX_RUNTIME_LIBS})
