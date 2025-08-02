@@ -4,6 +4,8 @@
 #include "core/model_wrapper.h"
 #include <queue>
 #include <chrono>
+#include <mutex>
+#include <functional>
 
 namespace openwakeword {
 
