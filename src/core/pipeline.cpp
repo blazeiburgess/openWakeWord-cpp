@@ -1,4 +1,5 @@
 #include "core/pipeline.h"
+#include "utils/simd_audio.h"
 #include <iostream>
 
 namespace openwakeword {
@@ -68,6 +69,12 @@ bool Pipeline::initialize() {
             std::cerr << "[LOG] Loaded wake word model: " << wakeWord << std::endl;
         }
         detectors_.push_back(std::move(detector));
+    }
+    
+    // Log SIMD availability
+    if (config_.outputMode == OutputMode::VERBOSE) {
+        std::cerr << "[LOG] SIMD audio conversion: " 
+                  << (SimdAudio::isSimdAvailable() ? "enabled" : "disabled") << std::endl;
     }
     
     return true;
@@ -146,24 +153,15 @@ void Pipeline::processAudio(const AudioSample* samples, size_t sampleCount) {
     auto borrowed = audioBufferPool_->borrow();
     auto& floatSamples = *borrowed;
     
-    // Ensure capacity and clear
-    floatSamples.clear();
-    floatSamples.reserve(sampleCount);
+    // Use SIMD-optimized conversion
+    SimdAudio::convertToFloat(samples, floatSamples, sampleCount);
     
-    for (size_t i = 0; i < sampleCount; ++i) {
-        // Apply preprocessors here (noise suppression, etc.)
-        AudioSample processedSample = samples[i];
-        
-        // TODO: Apply preprocessors
-        // for (auto& preprocessor : preprocessors_) {
-        //     if (preprocessor->isEnabled()) {
-        //         preprocessor->process(processedSample);
-        //     }
-        // }
-        
-        // Convert to float (no normalization)
-        floatSamples.push_back(static_cast<AudioFloat>(processedSample));
-    }
+    // TODO: Apply preprocessors if needed
+    // for (auto& preprocessor : preprocessors_) {
+    //     if (preprocessor->isEnabled()) {
+    //         preprocessor->process(floatSamples.data(), floatSamples.size());
+    //     }
+    // }
     
     // Push to audio buffer - move semantics will transfer ownership
     audioBuffer_->push(std::move(floatSamples));
