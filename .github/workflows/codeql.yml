@@ -1,0 +1,162 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  schedule:
+    # Run at 2:15 AM UTC every Wednesday
+    - cron: '15 2 * * 3'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 360
+    permissions:
+      # required for all workflows
+      security-events: write
+      # required to fetch internal or private CodeQL packs
+      packages: read
+      # only required for workflows in private repositories
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - language: c-cpp
+          build-mode: manual
+          os: ubuntu-latest
+          
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Setup Python for build requirements
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    # Install build dependencies
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake libspeexdsp-dev
+        
+    # Download ONNX Runtime for build
+    - name: Download ONNX Runtime
+      run: |
+        chmod +x download_onnxruntime.sh
+        ./download_onnxruntime.sh
+
+    # Initialize CodeQL
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+        # If you wish to specify custom queries, you can do so here or in a config file.
+        # By default, queries listed here will override any specified in a config file.
+        # Prefix the list here with "+" to use these queries and those in the config file.
+        
+        # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
+        # queries: security-extended,security-and-quality
+
+    # Build the project for CodeQL analysis
+    - name: Build project
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release --parallel
+
+    # Perform CodeQL Analysis
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
+        
+  # Additional security checks for Windows
+  analyze-windows:
+    name: Analyze Windows
+    runs-on: windows-latest
+    timeout-minutes: 360
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    # Download ONNX Runtime for Windows
+    - name: Download ONNX Runtime
+      shell: pwsh
+      run: |
+        $onnxVersion = "1.21.1"
+        $arch = "x64"
+        $onnxFile = "onnxruntime-win-$arch-gpu-$onnxVersion"
+        $downloadUrl = "https://github.com/microsoft/onnxruntime/releases/download/v$onnxVersion/$onnxFile.zip"
+        $destDir = "lib/$arch"
+        
+        New-Item -ItemType Directory -Force -Path $destDir
+        Invoke-WebRequest -Uri $downloadUrl -OutFile "$destDir/onnxruntime.zip"
+        Expand-Archive -Path "$destDir/onnxruntime.zip" -DestinationPath $destDir -Force
+        
+        Get-ChildItem "$destDir/$onnxFile/lib/*" | Move-Item -Destination $destDir -Force
+        if (Test-Path "$destDir/$onnxFile/include") {
+            Copy-Item -Path "$destDir/$onnxFile/include" -Destination $destDir -Recurse -Force
+        }
+        
+        Remove-Item -Path "$destDir/$onnxFile" -Recurse -Force
+        Remove-Item -Path "$destDir/onnxruntime.zip" -Force
+
+    # Initialize CodeQL
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: c-cpp
+        build-mode: manual
+
+    # Build with CMake
+    - name: Build project
+      run: |
+        cmake -B build -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release --parallel
+
+    # Perform CodeQL Analysis
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:c-cpp"
+        
+    # Run Microsoft C++ Code Analysis
+    - name: Run MSVC Code Analysis
+      uses: microsoft/msvc-code-analysis-action@v0.1.1
+      # Only run if not a PR from a fork
+      if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+      with:
+        cmakeBuildDirectory: build
+        buildConfiguration: Release
+        ruleset: NativeRecommendedRules.ruleset
+        
+    # Upload SARIF file to GitHub Code Scanning
+    - name: Upload SARIF to GitHub
+      uses: github/codeql-action/upload-sarif@v3
+      # Only run if not a PR from a fork
+      if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+      with:
+        sarif_file: build/results.sarif
