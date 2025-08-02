@@ -93,7 +93,7 @@ jobs:
       shell: pwsh
       run: |
         $arch = "x64"
-        $onnxFile = "onnxruntime-win-$arch-gpu-${{ env.ONNX_VERSION }}"
+        $onnxFile = "onnxruntime-win-$arch-${{ env.ONNX_VERSION }}"
         $downloadUrl = "https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/$onnxFile.zip"
         $destDir = "lib/$arch"
         
