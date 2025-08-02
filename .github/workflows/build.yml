@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  ONNX_VERSION: "1.21.1"
+  ONNX_VERSION: "1.22.0"
 
 jobs:
   build:
