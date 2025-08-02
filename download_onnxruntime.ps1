@@ -1,7 +1,7 @@
 # PowerShell script to download ONNX Runtime library for Windows
 
 param(
-    [string]$OnnxVersion = "1.21.1",
+    [string]$OnnxVersion = "1.22.0",
     [string]$Architecture = "x64"
 )
 

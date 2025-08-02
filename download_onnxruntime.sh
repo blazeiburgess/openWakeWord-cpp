@@ -4,7 +4,7 @@
 
 ARCH=$(uname -m)
 OS=$(uname -s)
-ONNX_VERSION="1.21.1"
+ONNX_VERSION="1.22.0"
 
 echo "OpenWakeWord ONNX Runtime Download Script"
 echo "========================================="
