@@ -31,7 +31,13 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 # Platform detection for library paths
-if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+if(WIN32)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(ARCH_DIR "x64")
+    else()
+        set(ARCH_DIR "x86")
+    endif()
+elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
     set(ARCH_DIR "x86_64")
 elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
     set(ARCH_DIR "aarch64")
@@ -125,7 +131,12 @@ elseif(APPLE)
 endif()
 
 # Copy ONNX Runtime shared libraries to output directory
-file(GLOB ONNX_RUNTIME_LIBS "${ONNXRUNTIME_LIB_DIR}/*.so*" "${ONNXRUNTIME_LIB_DIR}/*.dylib*")
+if(WIN32)
+    file(GLOB ONNX_RUNTIME_LIBS "${ONNXRUNTIME_LIB_DIR}/*.dll")
+else()
+    file(GLOB ONNX_RUNTIME_LIBS "${ONNXRUNTIME_LIB_DIR}/*.so*" "${ONNXRUNTIME_LIB_DIR}/*.dylib*")
+endif()
+
 foreach(lib ${ONNX_RUNTIME_LIBS})
     add_custom_command(TARGET openwakeword POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
