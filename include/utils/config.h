@@ -73,7 +73,7 @@ struct Config {
     int interOpNumThreads = 1;
     
     // Parse command line arguments
-    bool parseArgs(int argc, char* argv[]);
+    ParseResult parseArgs(int argc, char* argv[]);
     
     // Load from configuration file
     bool loadFromFile(const std::filesystem::path& configPath);
