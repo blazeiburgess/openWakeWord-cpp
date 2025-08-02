@@ -11,7 +11,7 @@
 
 namespace openwakeword {
 
-bool Config::parseArgs(int argc, char* argv[]) {
+ParseResult Config::parseArgs(int argc, char* argv[]) {
     std::string saveConfigPath;
     bool shouldSaveConfig = false;
     
