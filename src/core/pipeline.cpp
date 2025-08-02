@@ -14,6 +14,10 @@ Pipeline::Pipeline(const Config& config)
     
     // Calculate expected ready count
     expectedReadyCount_ = 2 + config_.wakeWordConfigs.size(); // mel + embedding + wake words
+    
+    // Initialize audio buffer pool with pre-allocated buffers
+    // Pool size: 4 buffers, each with capacity for max frame size
+    audioBufferPool_ = std::make_unique<VectorPool<AudioFloat>>(4, config_.frameSize);
 }
 
 Pipeline::~Pipeline() {
@@ -138,8 +142,12 @@ void Pipeline::processAudio(const AudioSample* samples, size_t sampleCount) {
         return;
     }
     
-    // Convert int16_t samples to float
-    std::vector<AudioFloat> floatSamples;
+    // Get a buffer from the pool
+    auto borrowed = audioBufferPool_->borrow();
+    auto& floatSamples = *borrowed;
+    
+    // Ensure capacity and clear
+    floatSamples.clear();
     floatSamples.reserve(sampleCount);
     
     for (size_t i = 0; i < sampleCount; ++i) {
@@ -157,8 +165,9 @@ void Pipeline::processAudio(const AudioSample* samples, size_t sampleCount) {
         floatSamples.push_back(static_cast<AudioFloat>(processedSample));
     }
     
-    // Push to audio buffer
-    audioBuffer_->push(floatSamples);
+    // Push to audio buffer - move semantics will transfer ownership
+    audioBuffer_->push(std::move(floatSamples));
+    // borrowed object automatically returns buffer to pool when it goes out of scope
 }
 
 void Pipeline::addPreprocessor(std::unique_ptr<Preprocessor> preprocessor) {

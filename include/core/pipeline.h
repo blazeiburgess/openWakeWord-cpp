@@ -13,6 +13,7 @@
 #include "processors/speech_embedding.h"
 #include "processors/wake_word_detector.h"
 #include "utils/config.h"
+#include "utils/object_pool.h"
 
 namespace openwakeword {
 
@@ -68,6 +69,9 @@ private:
     std::shared_ptr<ThreadSafeBuffer<AudioFloat>> audioBuffer_;
     std::shared_ptr<ThreadSafeBuffer<AudioFloat>> melBuffer_;
     std::vector<std::shared_ptr<ThreadSafeBuffer<AudioFloat>>> featureBuffers_;
+    
+    // Object pool for audio buffers
+    std::unique_ptr<VectorPool<AudioFloat>> audioBufferPool_;
     
     // Processing threads
     std::thread melThread_;
