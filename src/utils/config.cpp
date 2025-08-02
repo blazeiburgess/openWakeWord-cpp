@@ -62,26 +62,26 @@ ParseResult Config::parseArgs(int argc, char* argv[]) {
             showTimestamp = true;
         } else if (arg == "--version") {
             printVersion();
-            return false;
+            return ParseResult::INFO_EXIT;
         } else if (arg == "--list-models") {
             listAvailableModels();
-            return false;
+            return ParseResult::INFO_EXIT;
         } else if (arg == "-h" || arg == "--help") {
             printUsage(argv[0]);
-            return false;
+            return ParseResult::INFO_EXIT;
         } else if (arg == "-c" || arg == "--config") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             if (!loadFromFile(argv[++i])) {
-                return false;
+                return ParseResult::ERROR_EXIT;
             }
         } else if (arg == "--save-config") {
-            if (!ensureArg(argc, argv, i)) return false;
+            if (!ensureArg(argc, argv, i)) return ParseResult::ERROR_EXIT;
             saveConfigPath = argv[++i];
             shouldSaveConfig = true;
         } else {
             std::cerr << "[ERROR] Unknown argument: " << arg << std::endl;
             printUsage(argv[0]);
-            return false;
+            return ParseResult::ERROR_EXIT;
         }
     }
     
@@ -89,10 +89,10 @@ ParseResult Config::parseArgs(int argc, char* argv[]) {
     if (shouldSaveConfig) {
         if (!saveToFile(saveConfigPath)) {
             std::cerr << "[ERROR] Failed to save configuration to: " << saveConfigPath << std::endl;
-            return false;
+            return ParseResult::ERROR_EXIT;
         }
         std::cout << "Configuration saved to: " << saveConfigPath << std::endl;
-        return false; // Exit after saving
+        return ParseResult::INFO_EXIT; // Exit after saving
     }
     
     // Update frame size based on step frames
@@ -115,7 +115,7 @@ ParseResult Config::parseArgs(int argc, char* argv[]) {
         }
     }
     
-    return validate();
+    return validate() ? ParseResult::SUCCESS : ParseResult::ERROR_EXIT;
 }
 
 bool Config::loadFromFile(const std::filesystem::path& configPath) {
