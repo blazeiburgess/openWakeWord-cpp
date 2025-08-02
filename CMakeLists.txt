@@ -25,9 +25,51 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_compile_options(-g -O0)
+    elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+        # Aggressive optimizations for Release builds
+        add_compile_options(-O3)
+        
+        # CPU-specific optimizations if not cross-compiling
+        if(NOT CMAKE_CROSSCOMPILING AND NOT DEFINED CMAKE_OSX_ARCHITECTURES)
+            include(CheckCXXCompilerFlag)
+            CHECK_CXX_COMPILER_FLAG("-march=native" COMPILER_SUPPORTS_MARCH_NATIVE)
+            if(COMPILER_SUPPORTS_MARCH_NATIVE)
+                add_compile_options(-march=native)
+            endif()
+        endif()
+        
+        # Link Time Optimization
+        include(CheckIPOSupported)
+        check_ipo_supported(RESULT IPO_SUPPORTED)
+        if(IPO_SUPPORTED)
+            set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+        endif()
     else()
         add_compile_options(-O2)
     endif()
+endif()
+
+# Profile-Guided Optimization support
+option(ENABLE_PGO_GENERATE "Enable PGO profile generation" OFF)
+option(ENABLE_PGO_USE "Enable PGO profile use" OFF)
+
+if(ENABLE_PGO_GENERATE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-fprofile-generate)
+    add_link_options(-fprofile-generate)
+    message(STATUS "PGO profile generation enabled")
+elseif(ENABLE_PGO_USE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+        add_compile_options(-fprofile-use)
+        add_link_options(-fprofile-use)
+    else() # Clang
+        if(EXISTS "${CMAKE_BINARY_DIR}/default.profdata")
+            add_compile_options(-fprofile-use=${CMAKE_BINARY_DIR}/default.profdata)
+            add_link_options(-fprofile-use=${CMAKE_BINARY_DIR}/default.profdata)
+        else()
+            message(WARNING "PGO profile data not found at ${CMAKE_BINARY_DIR}/default.profdata")
+        endif()
+    endif()
+    message(STATUS "PGO profile use enabled")
 endif()
 
 # Platform detection for library paths
@@ -104,6 +146,7 @@ endif()
 set(SOURCES
     src/main.cpp
     src/core/model_wrapper.cpp
+    src/core/batch_model_wrapper.cpp
     src/core/pipeline.cpp
     src/processors/mel_spectrogram.cpp
     src/processors/speech_embedding.cpp
@@ -189,4 +232,18 @@ message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "  Architecture: ${ARCH_DIR}")
 message(STATUS "  ONNX Runtime: ${ONNXRUNTIME_LIB}")
 message(STATUS "  Output directory: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    message(STATUS "  Optimizations:")
+    if(COMPILER_SUPPORTS_MARCH_NATIVE)
+        message(STATUS "    - CPU-specific optimizations: enabled")
+    endif()
+    if(IPO_SUPPORTED)
+        message(STATUS "    - Link Time Optimization: enabled")
+    endif()
+    if(ENABLE_PGO_GENERATE)
+        message(STATUS "    - PGO profile generation: enabled")
+    elseif(ENABLE_PGO_USE)
+        message(STATUS "    - PGO profile use: enabled")
+    endif()
+endif()
 message(STATUS "")

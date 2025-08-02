@@ -14,6 +14,7 @@
 #include "core/types.h"
 #include "core/thread_safe_buffer.h"
 #include "utils/config.h"
+#include "utils/ring_buffer.h"
 
 namespace openwakeword {
 
@@ -54,7 +55,7 @@ private:
     const Ort::SessionOptions& options_;
     
     std::unique_ptr<WakeWordModel> model_;
-    std::vector<AudioFloat> todoFeatures_;
+    RingBuffer<AudioFloat> featureBuffer_;
     
     // Activation tracking
     int activationCount_ = 0;
@@ -84,15 +85,19 @@ void WakeWordDetector::run(std::shared_ptr<BufferType> input,
             break;
         }
         
-        // Accumulate features
-        todoFeatures_.insert(todoFeatures_.end(), features.begin(), features.end());
+        // Push features to ring buffer
+        if (!features.empty()) {
+            featureBuffer_.push(features);
+        }
         
         // Process when we have enough features
-        size_t numBufferedFeatures = todoFeatures_.size() / EMBEDDING_FEATURES;
+        size_t numBufferedFeatures = featureBuffer_.size() / EMBEDDING_FEATURES;
         while (numBufferedFeatures >= WAKEWORD_FEATURES) {
-            // Extract features for one prediction
-            FeatureBuffer windowFeatures(todoFeatures_.begin(),
-                                       todoFeatures_.begin() + (WAKEWORD_FEATURES * EMBEDDING_FEATURES));
+            // Pre-allocated buffer for features
+            thread_local FeatureBuffer windowFeatures(WAKEWORD_FEATURES * EMBEDDING_FEATURES);
+            
+            // Peek features for one prediction (sliding window)
+            featureBuffer_.peek(windowFeatures.data(), WAKEWORD_FEATURES * EMBEDDING_FEATURES);
             
             // Run wake word detection
             float probability = model_->predict(windowFeatures);
@@ -100,11 +105,10 @@ void WakeWordDetector::run(std::shared_ptr<BufferType> input,
             // Process the prediction
             processPrediction(probability, outputMutex, outputMode, showTimestamp);
             
-            // Remove one embedding worth of features
-            todoFeatures_.erase(todoFeatures_.begin(),
-                               todoFeatures_.begin() + EMBEDDING_FEATURES);
+            // Slide window by one embedding
+            featureBuffer_.skip(EMBEDDING_FEATURES);
             
-            numBufferedFeatures = todoFeatures_.size() / EMBEDDING_FEATURES;
+            numBufferedFeatures = featureBuffer_.size() / EMBEDDING_FEATURES;
         }
     }
 }

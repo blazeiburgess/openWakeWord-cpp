@@ -9,6 +9,7 @@
 #include "core/types.h"
 #include "core/thread_safe_buffer.h"
 #include "utils/config.h"
+#include "utils/ring_buffer.h"
 
 namespace openwakeword {
 
@@ -40,7 +41,7 @@ private:
     size_t frameSize_ = 4 * CHUNK_SAMPLES;
     
     std::unique_ptr<MelSpectrogramModel> model_;
-    std::vector<AudioFloat> todoSamples_;
+    RingBuffer<AudioFloat> audioBuffer_;
 };
 
 } // namespace openwakeword

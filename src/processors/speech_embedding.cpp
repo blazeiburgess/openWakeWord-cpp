@@ -6,8 +6,11 @@ namespace openwakeword {
 SpeechEmbeddingProcessor::SpeechEmbeddingProcessor(Ort::Env& env, 
                                                    const Ort::SessionOptions& options,
                                                    size_t numWakeWords)
-    : TransformProcessor("SpeechEmbedding"), env_(env), options_(options), 
-      numWakeWords_(numWakeWords) {
+    : TransformProcessor("SpeechEmbedding"), 
+      env_(env), 
+      options_(options), 
+      numWakeWords_(numWakeWords),
+      melBuffer_(EMBEDDING_WINDOW_SIZE * NUM_MELS * 2) {  // Buffer for 2 windows worth of mels
 }
 
 bool SpeechEmbeddingProcessor::initialize() {
@@ -33,7 +36,7 @@ bool SpeechEmbeddingProcessor::process() {
 }
 
 void SpeechEmbeddingProcessor::reset() {
-    todoMels_.clear();
+    melBuffer_.clear();
 }
 
 void SpeechEmbeddingProcessor::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> input,
@@ -46,6 +49,8 @@ void SpeechEmbeddingProcessor::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>>
         return;
     }
     
+    MelBuffer windowMels(EMBEDDING_WINDOW_SIZE * NUM_MELS);
+    
     while (true) {
         // Get mel spectrograms from input buffer
         auto mels = input->pull();
@@ -53,15 +58,16 @@ void SpeechEmbeddingProcessor::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>>
             break;
         }
         
-        // Accumulate mels
-        todoMels_.insert(todoMels_.end(), mels.begin(), mels.end());
+        // Push mels to ring buffer
+        if (!mels.empty()) {
+            melBuffer_.push(mels);
+        }
         
         // Process when we have enough mel frames
-        size_t melFrames = todoMels_.size() / NUM_MELS;
+        size_t melFrames = melBuffer_.size() / NUM_MELS;
         while (melFrames >= EMBEDDING_WINDOW_SIZE) {
-            // Extract window of mels
-            MelBuffer windowMels(todoMels_.begin(), 
-                               todoMels_.begin() + (EMBEDDING_WINDOW_SIZE * NUM_MELS));
+            // Peek window of mels (don't remove yet for sliding window)
+            melBuffer_.peek(windowMels.data(), EMBEDDING_WINDOW_SIZE * NUM_MELS);
             
             // Extract embeddings
             auto embeddings = model_->extractEmbeddings(windowMels);
@@ -72,10 +78,9 @@ void SpeechEmbeddingProcessor::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>>
             }
             
             // Slide window by step size
-            todoMels_.erase(todoMels_.begin(), 
-                           todoMels_.begin() + (EMBEDDING_STEP_SIZE * NUM_MELS));
+            melBuffer_.skip(EMBEDDING_STEP_SIZE * NUM_MELS);
             
-            melFrames = todoMels_.size() / NUM_MELS;
+            melFrames = melBuffer_.size() / NUM_MELS;
         }
     }
     

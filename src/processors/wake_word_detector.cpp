@@ -7,8 +7,12 @@ WakeWordDetector::WakeWordDetector(const std::string& wakeWord,
                                    const WakeWordConfig& config,
                                    Ort::Env& env, 
                                    const Ort::SessionOptions& options)
-    : AudioProcessor(wakeWord), wakeWord_(wakeWord), config_(config), 
-      env_(env), options_(options) {
+    : AudioProcessor(wakeWord), 
+      wakeWord_(wakeWord), 
+      config_(config), 
+      env_(env), 
+      options_(options),
+      featureBuffer_(WAKEWORD_FEATURES * EMBEDDING_FEATURES * 2) {  // Buffer for 2 windows
 }
 
 bool WakeWordDetector::initialize() {
@@ -34,7 +38,7 @@ bool WakeWordDetector::process() {
 }
 
 void WakeWordDetector::reset() {
-    todoFeatures_.clear();
+    featureBuffer_.clear();
     activationCount_ = 0;
 }
 

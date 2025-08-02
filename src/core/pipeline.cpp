@@ -1,4 +1,5 @@
 #include "core/pipeline.h"
+#include "utils/simd_audio.h"
 #include <iostream>
 
 namespace openwakeword {
@@ -8,12 +9,27 @@ Pipeline::Pipeline(const Config& config)
       env_(OrtLoggingLevel::ORT_LOGGING_LEVEL_WARNING, "openWakeWord") {
     env_.DisableTelemetryEvents();
     
-    // Configure session options
+    // Configure session options for optimal performance
     sessionOptions_.SetIntraOpNumThreads(config_.intraOpNumThreads);
     sessionOptions_.SetInterOpNumThreads(config_.interOpNumThreads);
     
+    // Memory optimization: Use arena allocator for better memory reuse
+    sessionOptions_.EnableCpuMemArena();
+    sessionOptions_.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
+    
+    // Graph optimization level
+    sessionOptions_.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+    
+    // Memory pattern optimization
+    sessionOptions_.EnableMemPattern();
+    sessionOptions_.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
+    
     // Calculate expected ready count
     expectedReadyCount_ = 2 + config_.wakeWordConfigs.size(); // mel + embedding + wake words
+    
+    // Initialize audio buffer pool with pre-allocated buffers
+    // Pool size: 4 buffers, each with capacity for max frame size
+    audioBufferPool_ = std::make_unique<VectorPool<AudioFloat>>(4, config_.frameSize);
 }
 
 Pipeline::~Pipeline() {
@@ -64,6 +80,12 @@ bool Pipeline::initialize() {
             std::cerr << "[LOG] Loaded wake word model: " << wakeWord << std::endl;
         }
         detectors_.push_back(std::move(detector));
+    }
+    
+    // Log SIMD availability
+    if (config_.outputMode == OutputMode::VERBOSE) {
+        std::cerr << "[LOG] SIMD audio conversion: " 
+                  << (SimdAudio::isSimdAvailable() ? "enabled" : "disabled") << std::endl;
     }
     
     return true;
@@ -138,27 +160,23 @@ void Pipeline::processAudio(const AudioSample* samples, size_t sampleCount) {
         return;
     }
     
-    // Convert int16_t samples to float
-    std::vector<AudioFloat> floatSamples;
-    floatSamples.reserve(sampleCount);
+    // Get a buffer from the pool
+    auto borrowed = audioBufferPool_->borrow();
+    auto& floatSamples = *borrowed;
     
-    for (size_t i = 0; i < sampleCount; ++i) {
-        // Apply preprocessors here (noise suppression, etc.)
-        AudioSample processedSample = samples[i];
-        
-        // TODO: Apply preprocessors
-        // for (auto& preprocessor : preprocessors_) {
-        //     if (preprocessor->isEnabled()) {
-        //         preprocessor->process(processedSample);
-        //     }
-        // }
-        
-        // Convert to float (no normalization)
-        floatSamples.push_back(static_cast<AudioFloat>(processedSample));
-    }
+    // Use SIMD-optimized conversion
+    SimdAudio::convertToFloat(samples, floatSamples, sampleCount);
     
-    // Push to audio buffer
-    audioBuffer_->push(floatSamples);
+    // TODO: Apply preprocessors if needed
+    // for (auto& preprocessor : preprocessors_) {
+    //     if (preprocessor->isEnabled()) {
+    //         preprocessor->process(floatSamples.data(), floatSamples.size());
+    //     }
+    // }
+    
+    // Push to audio buffer - move semantics will transfer ownership
+    audioBuffer_->push(std::move(floatSamples));
+    // borrowed object automatically returns buffer to pool when it goes out of scope
 }
 
 void Pipeline::addPreprocessor(std::unique_ptr<Preprocessor> preprocessor) {

@@ -4,7 +4,10 @@
 namespace openwakeword {
 
 MelSpectrogramProcessor::MelSpectrogramProcessor(Ort::Env& env, const Ort::SessionOptions& options)
-    : TransformProcessor("MelSpectrogram"), env_(env), options_(options) {
+    : TransformProcessor("MelSpectrogram"), 
+      env_(env), 
+      options_(options),
+      audioBuffer_(16 * CHUNK_SAMPLES) {  // Buffer for up to 16 chunks
 }
 
 bool MelSpectrogramProcessor::initialize() {
@@ -30,7 +33,7 @@ bool MelSpectrogramProcessor::process() {
 }
 
 void MelSpectrogramProcessor::reset() {
-    todoSamples_.clear();
+    audioBuffer_.clear();
 }
 
 void MelSpectrogramProcessor::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> input,
@@ -43,6 +46,8 @@ void MelSpectrogramProcessor::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> 
         return;
     }
     
+    AudioBuffer frameSamples(frameSize_);
+    
     while (true) {
         // Get audio samples from input buffer
         auto samples = input->pull();
@@ -50,22 +55,21 @@ void MelSpectrogramProcessor::run(std::shared_ptr<ThreadSafeBuffer<AudioFloat>> 
             break;
         }
         
-        // Accumulate samples
-        todoSamples_.insert(todoSamples_.end(), samples.begin(), samples.end());
+        // Push samples to ring buffer
+        if (!samples.empty()) {
+            audioBuffer_.push(samples);
+        }
         
         // Process complete frames
-        while (todoSamples_.size() >= frameSize_) {
-            // Extract one frame
-            AudioBuffer frameSamples(todoSamples_.begin(), todoSamples_.begin() + frameSize_);
+        while (audioBuffer_.size() >= frameSize_) {
+            // Pop one frame directly into our pre-allocated buffer
+            audioBuffer_.pop(frameSamples, frameSize_);
             
             // Compute mel spectrogram
             auto melData = model_->computeMelSpectrogram(frameSamples);
             
             // Push to output buffer
             output->push(melData);
-            
-            // Remove processed samples
-            todoSamples_.erase(todoSamples_.begin(), todoSamples_.begin() + frameSize_);
         }
     }
     
