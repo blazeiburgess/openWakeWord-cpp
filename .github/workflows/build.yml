@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [ main ]
   workflow_dispatch:
 
 env:
@@ -58,7 +58,7 @@ jobs:
         
     - name: Cache ONNX Runtime
       id: cache-onnx
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: lib/
         key: ${{ runner.os }}-${{ matrix.arch }}-onnx-${{ env.ONNX_VERSION }}
@@ -210,7 +210,7 @@ jobs:
         Compress-Archive -Path "dist/*" -DestinationPath "openwakeword-${{ matrix.os }}-${{ matrix.compiler }}.zip"
         
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: openwakeword-${{ matrix.os }}-${{ matrix.compiler }}
         path: |
